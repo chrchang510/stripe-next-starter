@@ -4,8 +4,14 @@ import { createProject } from "@/lib/store";
 import { runPipeline } from "@/lib/agents/pipeline";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { prompt, githubUrl } = body as { prompt: string; githubUrl?: string };
+  let body: { prompt?: string; githubUrl?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { prompt, githubUrl } = body;
 
   if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });

@@ -1,16 +1,13 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { v4 as uuid } from "uuid";
 import {
   ProductionPlan,
   DAG,
   DAGNode,
   DAGEdge,
   DAGDepth,
-  CodeGenInput,
-  MergeInput,
-  ReviewInput,
 } from "../types";
 import { addLog } from "../store";
+import { collectResult, parseAgentResult } from "./utils";
 
 const PRODUCTION_SYSTEM_PROMPT = `You are a production orchestration agent. Given a production plan, you create a Directed Acyclic Graph (DAG) of tasks for parallel code generation.
 
@@ -116,14 +113,8 @@ Return ONLY valid JSON. No markdown, no code fences.`;
     },
   });
 
-  let resultText = "";
-  for await (const message of conversation) {
-    if (message.type === "result" && message.subtype === "success") {
-      resultText = message.result;
-    }
-  }
-
-  const rawDAG = JSON.parse(resultText) as { nodes: DAGNode[]; edges: DAGEdge[] };
+  const resultText = await collectResult(conversation);
+  const rawDAG = parseAgentResult<{ nodes: DAGNode[]; edges: DAGEdge[] }>(resultText, "production");
 
   // Build depth map
   const depthMap = new Map<number, string[]>();

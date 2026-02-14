@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { MergeInput, NodeOutput, GeneratedFile } from "../types";
 import { addLog } from "../store";
+import { collectResult, parseAgentResult } from "./utils";
 
 const MERGER_SYSTEM_PROMPT = `You are an expert code merging agent. Your job is to take code from multiple independently-generated modules and merge them into a cohesive, working codebase.
 
@@ -50,6 +51,13 @@ export async function runMergerAgent(
     const output = sourceOutputs.get(sourceId);
     if (output) {
       allFiles.push({ sourceNode: sourceId, files: output.files });
+    } else {
+      addLog(projectId, {
+        level: "warn",
+        agent: "merger",
+        nodeId,
+        message: `Source node ${sourceId} has no output (may have failed) - skipping`,
+      });
     }
   }
 
@@ -142,14 +150,8 @@ When done, output the final result as JSON matching the schema in your instructi
     },
   });
 
-  let resultText = "";
-  for await (const message of conversation) {
-    if (message.type === "result" && message.subtype === "success") {
-      resultText = message.result;
-    }
-  }
-
-  const output = JSON.parse(resultText) as NodeOutput;
+  const resultText = await collectResult(conversation);
+  const output = parseAgentResult<NodeOutput>(resultText, "merger");
 
   addLog(projectId, {
     level: output.buildSuccess ? "success" : "warn",

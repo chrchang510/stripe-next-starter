@@ -35,6 +35,9 @@ const NODE_TYPE_LABELS: Record<DAGNode["type"], string> = {
 };
 
 export function DAGView({ dag }: { dag: DAG }) {
+  // Build a node lookup for O(1) access
+  const nodeMap = new Map(dag.nodes.map((n) => [n.id, n]));
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
@@ -64,7 +67,7 @@ export function DAGView({ dag }: { dag: DAG }) {
 
         {/* Render by depth level */}
         <div className="space-y-8">
-          {dag.depths.map((depth) => (
+          {dag.depths.map((depth, depthIndex) => (
             <div key={depth.depth}>
               <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]/60">
                 Depth {depth.depth}
@@ -73,7 +76,7 @@ export function DAGView({ dag }: { dag: DAG }) {
 
               <div className="flex flex-wrap gap-3">
                 {depth.nodeIds.map((nodeId) => {
-                  const node = dag.nodes.find((n) => n.id === nodeId);
+                  const node = nodeMap.get(nodeId);
                   if (!node) return null;
                   const style = NODE_STATUS_STYLES[node.status];
 
@@ -132,7 +135,7 @@ export function DAGView({ dag }: { dag: DAG }) {
               </div>
 
               {/* Arrow connector to next depth */}
-              {depth.depth < dag.depths.length - 1 && (
+              {depthIndex < dag.depths.length - 1 && (
                 <div className="flex justify-center py-2">
                   <svg
                     width="24"
@@ -157,7 +160,7 @@ export function DAGView({ dag }: { dag: DAG }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat
           label="Total Nodes"
           value={dag.nodes.length}

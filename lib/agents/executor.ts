@@ -22,10 +22,18 @@ export async function executeDAG(
   plan: ProductionPlan
 ): Promise<void> {
   const nodeOutputs = new Map<string, NodeOutput>();
+  const failedNodes = new Set<string>();
   const workspaceBase = join(WORKSPACE_ROOT, projectId);
 
   // Create workspace directories
   mkdirSync(workspaceBase, { recursive: true });
+
+  // Build a lookup of edges so we can check dependencies
+  const incomingEdges = new Map<string, string[]>();
+  for (const edge of dag.edges) {
+    if (!incomingEdges.has(edge.to)) incomingEdges.set(edge.to, []);
+    incomingEdges.get(edge.to)!.push(edge.from);
+  }
 
   addLog(projectId, {
     level: "info",
@@ -41,6 +49,18 @@ export async function executeDAG(
       message: `Executing depth ${depth.depth}: ${depth.nodeIds.length} parallel tasks`,
     });
 
+    // Update project status based on what's running at this depth
+    const nodesAtDepth = depth.nodeIds
+      .map((id) => dag.nodes.find((n) => n.id === id))
+      .filter(Boolean) as DAGNode[];
+    const hasMerge = nodesAtDepth.some((n) => n.type === "merge");
+    const hasReview = nodesAtDepth.some((n) => n.type === "review");
+    if (hasReview) {
+      updateProject(projectId, { status: "reviewing" });
+    } else if (hasMerge) {
+      updateProject(projectId, { status: "merging" });
+    }
+
     // Execute all nodes at this depth in parallel
     const promises = depth.nodeIds.map(async (nodeId) => {
       const node = dag.nodes.find((n) => n.id === nodeId);
@@ -51,6 +71,22 @@ export async function executeDAG(
           nodeId,
           message: `Node ${nodeId} not found in DAG`,
         });
+        failedNodes.add(nodeId);
+        return;
+      }
+
+      // Check if any dependency has failed
+      const deps = incomingEdges.get(nodeId) || [];
+      const failedDeps = deps.filter((d) => failedNodes.has(d));
+      if (failedDeps.length > 0) {
+        addLog(projectId, {
+          level: "error",
+          agent: "executor",
+          nodeId,
+          message: `Skipping ${node.label}: dependencies failed (${failedDeps.join(", ")})`,
+        });
+        updateNode(projectId, nodeId, { status: "error" });
+        failedNodes.add(nodeId);
         return;
       }
 
@@ -58,7 +94,9 @@ export async function executeDAG(
       updateNode(projectId, nodeId, { status: "running" });
 
       try {
-        const nodePath = join(workspaceBase, `node-${nodeId}`);
+        // Sanitize nodeId for filesystem path (replace non-alphanumeric chars)
+        const safeNodeId = nodeId.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const nodePath = join(workspaceBase, `node-${safeNodeId}`);
         mkdirSync(nodePath, { recursive: true });
 
         let output: NodeOutput;
@@ -112,6 +150,7 @@ export async function executeDAG(
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         updateNode(projectId, nodeId, { status: "error" });
+        failedNodes.add(nodeId);
         addLog(projectId, {
           level: "error",
           agent: "executor",
@@ -125,10 +164,14 @@ export async function executeDAG(
     await Promise.all(promises);
   }
 
-  // Collect final output from the last node (should be review node)
-  const lastDepth = dag.depths[dag.depths.length - 1];
-  const lastNodeId = lastDepth.nodeIds[lastDepth.nodeIds.length - 1];
-  const finalOutput = nodeOutputs.get(lastNodeId);
+  // Find the review node (most robust) or fall back to last node in last depth
+  const reviewNode = dag.nodes.find((n) => n.type === "review");
+  const finalNodeId = reviewNode
+    ? reviewNode.id
+    : dag.depths[dag.depths.length - 1]?.nodeIds[
+        dag.depths[dag.depths.length - 1].nodeIds.length - 1
+      ];
+  const finalOutput = finalNodeId ? nodeOutputs.get(finalNodeId) : undefined;
 
   if (finalOutput) {
     setGeneratedFiles(projectId, finalOutput.files);
@@ -139,11 +182,14 @@ export async function executeDAG(
       message: `Pipeline complete! ${finalOutput.files.length} files generated.`,
     });
   } else {
-    updateProject(projectId, { status: "error", error: "No output from final node" });
+    updateProject(projectId, {
+      status: "error",
+      error: `No output from final node. ${failedNodes.size} node(s) failed.`,
+    });
     addLog(projectId, {
       level: "error",
       agent: "executor",
-      message: "Pipeline failed: no output from final review node",
+      message: `Pipeline failed: ${failedNodes.size} node(s) failed, no final output`,
     });
   }
 }

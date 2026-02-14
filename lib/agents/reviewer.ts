@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { ReviewInput, NodeOutput, GeneratedFile } from "../types";
+import { ReviewInput, NodeOutput } from "../types";
 import { addLog } from "../store";
+import { collectResult, parseAgentResult } from "./utils";
 
 const REVIEWER_SYSTEM_PROMPT = `You are an expert code reviewer and QA agent. You perform the final review of a complete generated codebase.
 
@@ -135,14 +136,8 @@ When done, output the final reviewed codebase as JSON matching the schema in you
     },
   });
 
-  let resultText = "";
-  for await (const message of conversation) {
-    if (message.type === "result" && message.subtype === "success") {
-      resultText = message.result;
-    }
-  }
-
-  const output = JSON.parse(resultText) as NodeOutput;
+  const resultText = await collectResult(conversation);
+  const output = parseAgentResult<NodeOutput>(resultText, "reviewer");
 
   const passedTests = output.testResults?.filter((t) => t.passed).length ?? 0;
   const totalTests = output.testResults?.length ?? 0;

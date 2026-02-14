@@ -105,7 +105,7 @@ export default function Home() {
         </button>
       </form>
 
-      <div className="mt-16 grid grid-cols-3 gap-6 text-center">
+      <div className="mt-16 grid grid-cols-1 gap-6 text-center sm:grid-cols-3">
         <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6">
           <div className="mb-2 text-2xl font-bold text-[var(--accent)]">1</div>
           <h3 className="mb-1 font-medium text-[var(--text-primary)]">Plan</h3>

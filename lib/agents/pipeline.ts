@@ -20,8 +20,7 @@ export async function runPipeline(
     const plan = await runPlannerAgent(projectId, prompt, githubUrl);
     setPlan(projectId, plan);
 
-    // Phase 2: DAG Creation
-    updateProject(projectId, { status: "building_dag" });
+    // Phase 2: DAG Creation (status set by setPlan -> "building_dag")
     addLog(projectId, {
       level: "info",
       agent: "pipeline",
@@ -31,8 +30,8 @@ export async function runPipeline(
     const dag = await runProductionAgent(projectId, plan);
     setDAG(projectId, dag);
 
-    // Phase 3: Execute DAG (codegen, merge, review)
-    updateProject(projectId, { status: "generating" });
+    // Phase 3: Execute DAG (status set by setDAG -> "generating",
+    // executor updates to "merging"/"reviewing" as appropriate)
     addLog(projectId, {
       level: "info",
       agent: "pipeline",

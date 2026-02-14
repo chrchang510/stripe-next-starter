@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { CodeGenInput, GeneratedFile, TestResult, NodeOutput } from "../types";
+import { CodeGenInput, NodeOutput } from "../types";
 import { addLog } from "../store";
+import { collectResult, parseAgentResult } from "./utils";
 
 const MAX_REACT_ITERATIONS = 5;
 
@@ -115,30 +116,8 @@ When done, output the final result as JSON matching the schema in your instructi
     },
   });
 
-  let resultText = "";
-  for await (const message of conversation) {
-    if (message.type === "assistant") {
-      // Log intermediate progress
-      const content = message.message.content;
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          if ("text" in block && typeof block.text === "string" && block.text.length < 200) {
-            addLog(projectId, {
-              level: "info",
-              agent: "codegen",
-              nodeId,
-              message: block.text.substring(0, 200),
-            });
-          }
-        }
-      }
-    }
-    if (message.type === "result" && message.subtype === "success") {
-      resultText = message.result;
-    }
-  }
-
-  const output = JSON.parse(resultText) as NodeOutput;
+  const resultText = await collectResult(conversation);
+  const output = parseAgentResult<NodeOutput>(resultText, "codegen");
 
   const passedTests = output.testResults?.filter((t) => t.passed).length ?? 0;
   const totalTests = output.testResults?.length ?? 0;

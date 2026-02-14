@@ -115,9 +115,8 @@ export interface LogEntry {
   nodeId?: string;
 }
 
-export interface REACTStep {
-  thought: string;
-  action: string;
-  observation: string;
-  reflection: string;
+export interface NodeUpdateEvent {
+  nodeId: string;
+  status?: DAGNode["status"];
+  output?: NodeOutput;
 }

@@ -30,7 +30,7 @@ export function LogPanel({ logs }: { logs: LogEntry[] }) {
       <div className="px-4 py-2 border-b border-[var(--border-color)] text-xs font-medium text-[var(--text-secondary)]">
         Agent Logs ({logs.length})
       </div>
-      <div className="max-h-[600px] overflow-y-auto p-4 font-mono text-xs leading-relaxed">
+      <div className="max-h-[600px] overflow-y-auto p-4 font-mono text-xs leading-relaxed" role="log" aria-live="polite">
         {logs.map((log, i) => {
           const style = LEVEL_STYLES[log.level];
           const time = new Date(log.timestamp).toLocaleTimeString();

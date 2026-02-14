@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { ProductionPlan } from "../types";
 import { addLog } from "../store";
+import { collectResult, parseAgentResult } from "./utils";
 
 const PLANNER_SYSTEM_PROMPT = `You are a senior software architect and production planner. Your job is to take a user's project request and create a detailed production plan for building the software.
 
@@ -93,14 +94,8 @@ export async function runPlannerAgent(
     },
   });
 
-  let resultText = "";
-  for await (const message of conversation) {
-    if (message.type === "result" && message.subtype === "success") {
-      resultText = message.result;
-    }
-  }
-
-  const plan = JSON.parse(resultText) as ProductionPlan;
+  const resultText = await collectResult(conversation);
+  const plan = parseAgentResult<ProductionPlan>(resultText, "planner");
 
   addLog(projectId, {
     level: "success",
