@@ -1,25 +1,29 @@
 {
-  "name": "stripe-next",
+  "name": "website-generator-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@stripe/react-stripe-js": "^1.0.3",
-    "@stripe/stripe-js": "^1.0.2",
-    "isomorphic-unfetch": "^3.0.0",
-    "micro": "^9.3.4",
-    "micro-cors": "^0.1.1",
-    "next": "^9.2.2",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0",
-    "stripe": "^8.29.0"
+    "@anthropic-ai/claude-agent-sdk": "^0.2.41",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "uuid": "^11.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.7.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.5.0"
   }
 }
